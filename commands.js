@@ -1,5 +1,4 @@
-import { getRPSChoices } from './game.js';
-import { capitalize, DiscordRequest } from './utils.js';
+import { DiscordRequest } from './utils.js';
 
 export async function HasGuildCommands(appId, guildId, commands) {
   if (guildId === '' || appId === '') return;
@@ -31,6 +30,59 @@ async function HasGuildCommand(appId, guildId, command) {
   }
 }
 
+export async function GetMessagesFromLast24Hrs(channelId) {
+  // API endpoint to get and post guild commands
+
+  const endpoint = `channels/${channelId}/messages?limit=100`;
+  try {
+    const messageDeletionList = [];
+    const res = await DiscordRequest(endpoint, { method: "GET" });
+    const data = await res.json();
+
+    if (data) {
+      const messages = data.map((c) => ({
+        id: c.id,
+        timestamp: c.timestamp,
+      }));
+
+      messages.forEach((item) => {
+        var date1 = new Date(item.timestamp);
+
+        var timeStamp = Math.round(new Date().getTime() / 1000);
+        var timeStampYesterday = timeStamp - 24 * 3600;
+        //var cutoff = new Date(timeStampYesterday * 1000);
+        var isLessThan24hrsOld = date1 >= new Date(timeStampYesterday * 1000).getTime();
+        var isLessThan14DaysOld = date1 > Date.now() - 1000 * 60 * 60 * 24 * 14;
+
+        if (!isLessThan24hrsOld && isLessThan14DaysOld) {
+          messageDeletionList.push(item.id);
+        }
+      });
+
+      if (messageDeletionList.length > 0) {
+        DeleteOldMessages(messageDeletionList, channelId);
+        return `Deleted ${messageDeletionList.length} messages.`
+      }else{
+        return "Nothing to delete or old messages are over 14 days old."
+      }
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+export async function DeleteOldMessages(messageDeletionList, channelId) {
+  const endpoint = `channels/${channelId}/messages/bulk-delete`;
+  try {
+    await DiscordRequest(endpoint, {
+      method: "POST",
+      body: { messages: messageDeletionList },
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 // Installs a command
 export async function InstallGuildCommand(appId, guildId, command) {
   // API endpoint to get and post guild commands
@@ -42,41 +94,10 @@ export async function InstallGuildCommand(appId, guildId, command) {
     console.error(err);
   }
 }
-
-// Get the game choices from game.js
-function createCommandChoices() {
-  const choices = getRPSChoices();
-  const commandChoices = [];
-
-  for (let choice of choices) {
-    commandChoices.push({
-      name: capitalize(choice),
-      value: choice.toLowerCase(),
-    });
-  }
-
-  return commandChoices;
-}
-
 // Simple test command
-export const TEST_COMMAND = {
-  name: 'test',
-  description: 'Basic guild command',
+export const ENABLE_COMMAND = {
+  name: 'enable', // Must be all lower case
+  description: 'Enables the auto delete bot, will delete any message older than 24 hours within 15 days.',
   type: 1,
 };
 
-// Command containing options
-export const CHALLENGE_COMMAND = {
-  name: 'challenge',
-  description: 'Challenge to a match of rock paper scissors',
-  options: [
-    {
-      type: 3,
-      name: 'object',
-      description: 'Pick your object',
-      required: true,
-      choices: createCommandChoices(),
-    },
-  ],
-  type: 1,
-};
