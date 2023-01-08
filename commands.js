@@ -39,6 +39,7 @@ export async function GetMessagesFromLast24Hrs(channelId) {
     const res = await DiscordRequest(endpoint, { method: "GET" });
     const data = await res.json();
 
+    console.log(`Fetched messages from ChannelId: ${channelId}.`)
     if (data) {
       const messages = data.map((c) => ({
         id: c.id,
@@ -60,7 +61,9 @@ export async function GetMessagesFromLast24Hrs(channelId) {
       });
 
       if (messageDeletionList.length > 0) {
+        console.log(`Deleting ${messageDeletionList.length} messages...`)
         DeleteOldMessages(messageDeletionList, channelId);
+        console.log("Done");
         return `Deleted ${messageDeletionList.length} messages.`
       }else{
         return "Nothing to delete or old messages are over 14 days old."
@@ -98,6 +101,11 @@ export async function InstallGuildCommand(appId, guildId, command) {
 export const ENABLE_COMMAND = {
   name: 'enable', // Must be all lower case
   description: 'Enables the auto delete bot, will delete any message older than 24 hours within 15 days.',
+  type: 1,
+};
+export const DISABLE_COMMAND = {
+  name: 'disable', // Must be all lower case
+  description: 'Turns off the auto delete bot.',
   type: 1,
 };
 
